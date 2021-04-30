@@ -1,0 +1,67 @@
+model{
+
+### Priors #############################################################
+# Intercept prior for biological model
+beta0 ~ dnorm(0, 0.1) 
+# Slope coefficient priors for biological model
+for(b in 1:8){
+  beta[b] ~ dnorm(0, 0.1)
+}
+
+# Random point effect
+for(i in 1:154){
+  re.point[i] ~ dnorm(0, tau.point)
+  re.plot[i] ~ dnorm(0, tau.plot)
+}
+tau.point ~ dgamma(1, 1)
+tau.plot ~ dgamma(1, 1)
+
+### Likelihood ######################################################
+# Biological model
+for(i in 1:n){
+  for(k in 1:K){
+    eh.arr[i, k] ~ dpois(lambda[i, k])
+    log(lambda[i, k]) <- beta0 +
+                          trt[i, k] * beta[1] +
+                          w30[i, k] * beta[2] +
+                          w45[i, k] * beta[3] +
+                          r4.5[i, k] * beta[4] + 
+                          (trt[i, k] * time[i, k]) * beta[5] +
+                          elev.mat[i, k] * beta[6] +
+                          trmi.mat[i, k] * beta[7] +
+                          wid.mat[i, k] * beta[8] +
+                          re.point[parm.point[i]] +
+                          re.plot[parm.plot[i]]  
+  }
+}
+
+# Goodness-of-fit test 
+for(i in 1:n){
+  for(k in 1:K){
+      C.sim[i, k] ~ dpois(lambda[i, k])  # New data set
+      E.count[i, k] <- lambda[i, k]  # Expected data
+      chi2.act[i, k] <- pow((eh.arr[i, k] - E.count[i, k]), 2) / (E.count[i, k] + e)
+      chi2.sim[i, k] <- pow((C.sim[i, k] - E.count[i, k]), 2) / (E.count[i, k] + e)
+  }
+}
+
+### Derived quantities ##############################################
+fit.act <- sum(chi2.act[1:n, 1:K])
+fit.sim <- sum(chi2.sim[1:n, 1:K])
+p.val <- step(fit.sim - fit.act)  # GOF p-value
+re.mean.pt <- mean(re.point[1:n])
+re.mean.pl <- mean(re.plot[1:n])
+
+## Treatment effects ##
+w15ctly1 <- beta[1] + beta[5]
+w15ctly2 <- beta[1] + beta[5] * 2
+w30ctly1 <- beta[1] + beta[2] + beta[5]
+w30ctly2 <- beta[1] + beta[2] + beta[5] * 2
+w45ctly1 <- beta[1] + beta[3] + beta[5]
+w45ctly2 <- beta[1] + beta[3] + beta[5] * 2
+r14ctly1 <- beta[1] + beta[5]
+r14ctly2 <- beta[1] + beta[5] * 2
+r4.5ctly1 <- beta[1] + beta[4] + beta[5]
+r4.5ctly2 <- beta[1] + beta[4] + beta[5] * 2
+
+}
